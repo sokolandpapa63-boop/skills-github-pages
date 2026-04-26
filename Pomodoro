@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Pomodoro Flow Pro + Microsoft To Do</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #f1f5f9;
+        }
+
+        .app-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .timer-panel, .todo-panel, .stats-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 48px;
+            padding: 32px 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .timer-panel { flex: 1.2; min-width: 350px; }
+        .todo-panel { flex: 1.8; min-width: 450px; }
+        .stats-panel { flex: 0.8; min-width: 280px; }
+
+        .mode-selector {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .mode-btn {
+            background: transparent;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #94a3b8;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background: #3b82f6;
+            color: white;
+            box-shadow: 0 4px 12px rgba(59,130,246,0.4);
+        }
+
+        .mode-btn.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .timer-circle { text-align: center; margin: 20px 0; }
+        .time-display {
+            font-size: 6rem;
+            font-weight: 700;
+            font-family: monospace;
+            letter-spacing: 5px;
+            background: linear-gradient(135deg, #fff, #94a3b8);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .task-label {
+            font-size: 1rem;
+            color: #cbd5e1;
+            margin-top: 8px;
+            background: rgba(0,0,0,0.3);
+            display: inline-block;
+            padding: 4px 16px;
+            border-radius: 40px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin: 25px 0;
+        }
+
+        .ctrl-btn {
+            background: #334155;
+            border: none;
+            width: 55px;
+            height: 55px;
+            border-radius: 55px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: white;
+        }
+
+        .ctrl-btn.primary { background: #3b82f6; width: 70px; }
+
+        .settings-area {
+            background: rgba(0,0,0,0.2);
+            padding: 20px;
+            border-radius: 24px;
+            margin-top: 20px;
+        }
+
+        .settings-area h3 { text-align: center; margin-bottom: 20px; }
+        .settings-grid { display: flex; flex-direction: column; gap: 15px; }
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            background: rgba(0,0,0,0.2);
+            padding: 10px 15px;
+            border-radius: 16px;
+        }
+        .settings-row span { flex: 1; text-align: left; }
+        .settings-row input, .settings-row select {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid #475569;
+            padding: 8px 12px;
+            border-radius: 12px;
+            color: white;
+            width: 100px;
+            text-align: center;
+        }
+        .settings-row button {
+            background: #3b82f6;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            color: white;
+            width: 100%;
+        }
+
+        .stat-item {
+            background: rgba(0,0,0,0.2);
+            padding: 12px;
+            border-radius: 20px;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        .stat-value { font-size: 2rem; font-weight: bold; color: #3b82f6; }
+
+        .tasks-section {
+            margin-bottom: 20px;
+        }
+
+        .active-tasks {
+            margin-bottom: 20px;
+        }
+
+        .archive-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 12px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 30px;
+            margin-top: 10px;
+            transition: 0.2s;
+        }
+
+        .archive-header:hover {
+            background: rgba(0,0,0,0.4);
+        }
+
+        .archive-icon {
+            font-size: 1.2rem;
+            transition: transform 0.3s;
+            display: inline-block;
+        }
+
+        .archive-icon.open {
+            transform: rotate(90deg);
+        }
+
+        .archive-title {
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+
+        .archive-count {
+            background: #475569;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+        }
+
+        .archive-tasks {
+            display: none;
+            margin-top: 10px;
+            padding-left: 10px;
+            border-left: 2px solid #3b82f6;
+        }
+
+        .archive-tasks.open {
+            display: block;
+        }
+
+        .task-item {
+            background: rgba(255,255,255,0.05);
+            margin-bottom: 12px;
+            padding: 14px 16px;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            cursor: pointer;
+        }
+
+        .task-item:hover { background: rgba(255,255,255,0.1); }
+        
+        .archived-task {
+            opacity: 0.7;
+        }
+        
+        .archived-task .task-text {
+            text-decoration: line-through;
+            color: #64748b;
+        }
+
+        .task-check {
+            width: 20px;
+            height: 20px;
+            border-radius: 20px;
+            border: 2px solid #64748b;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .task-check.completed { background: #22c55e; border-color: #22c55e; }
+
+        .task-text { flex: 1; font-size: 0.9rem; cursor: pointer; }
+
+        .task-meta { display: flex; gap: 8px; font-size: 0.7rem; flex-wrap: wrap; }
+        .task-list-badge { background: #3b82f620; padding: 2px 8px; border-radius: 12px; color: #60a5fa; }
+        .task-due-date { background: #f59e0b20; padding: 2px 8px; border-radius: 12px; color: #fbbf24; }
+        .has-checklist, .has-notes { padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; }
+        .has-checklist { background: #8b5cf620; color: #a78bfa; }
+        .has-notes { background: #06b6d420; color: #22d3ee; }
+        
+        .restore-task {
+            background: none;
+            border: none;
+            color: #22c55e;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0 5px;
+        }
+        
+        .restore-task:hover {
+            color: #4ade80;
+        }
+        
+        .delete-task {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0 5px;
+        }
+        
+        .delete-task:hover {
+            color: #f87171;
+        }
+
+        .login-btn, .sync-btn {
+            padding: 8px 20px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            border: none;
+        }
+        .login-btn { background: #2c3e66; border: 1px solid #3b82f6; color: white; }
+        .login-btn.logged-in { background: #22c55e; }
+        .sync-btn { background: #4f46e5; color: white; display: inline-flex; align-items: center; gap: 6px; }
+        .sync-btn:hover { background: #6366f1; }
+
+        .task-input-area { display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
+        .task-input {
+            flex: 1;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid #475569;
+            padding: 12px 16px;
+            border-radius: 40px;
+            color: white;
+        }
+        .add-btn { background: #3b82f6; border: none; padding: 0 20px; border-radius: 40px; cursor: pointer; color: white; }
+
+        .todo-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .header-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+        .list-selector {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid #475569;
+            padding: 8px 16px;
+            border-radius: 40px;
+            color: white;
+            cursor: pointer;
+        }
+
+        h2, h3 { margin-bottom: 15px; font-size: 1.2rem; }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+        }
+        .modal-content {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 48px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #475569; padding-bottom: 15px; }
+        .close-modal { background: none; border: none; color: #94a3b8; font-size: 1.8rem; cursor: pointer; }
+        .task-detail-title { font-size: 1.5rem; margin-bottom: 20px; }
+        .task-detail-section { margin-bottom: 25px; }
+        .task-detail-section h4 { color: #60a5fa; margin-bottom: 10px; }
+        .checklist-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #334155; }
+        .checklist-check { width: 18px; height: 18px; border-radius: 18px; border: 2px solid #64748b; cursor: pointer; }
+        .checklist-check.checked { background: #22c55e; border-color: #22c55e; }
+        .checklist-text { flex: 1; }
+        .checklist-text.checked { text-decoration: line-through; color: #64748b; }
+        .add-checklist-input { display: flex; gap: 10px; margin-top: 15px; }
+        .add-checklist-input input { flex: 1; background: rgba(255,255,255,0.1); border: 1px solid #475569; padding: 8px 12px; border-radius: 20px; color: white; }
+        .add-checklist-input button { background: #3b82f6; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; color: white; }
+        .notes-editor { width: 100%; background: rgba(0,0,0,0.3); border: 1px solid #475569; padding: 12px; border-radius: 20px; color: white; font-family: inherit; resize: vertical; }
+        .save-notes-btn { margin-top: 10px; background: #22c55e; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; color: white; }
+
+        .loading, .sync-status { text-align: center; padding: 20px; color: #64748b; }
+        .sync-status { padding: 10px; font-size: 0.75rem; }
+
+        @media (max-width: 1000px) { .app-container { flex-direction: column; } }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="timer-panel">
+        <div class="mode-selector">
+            <button class="mode-btn active" data-mode="pomodoro">🍅 Pomodoro</button>
+            <button class="mode-btn" data-mode="shortBreak">☕ Short Break</button>
+            <button class="mode-btn" data-mode="longBreak">🌿 Long Break</button>
+        </div>
+        <div class="timer-circle">
+            <div class="time-display" id="timerDisplay">25:00</div>
+            <div class="task-label" id="activeTaskLabel">⚡ Выберите задачу для фокуса</div>
+        </div>
+        <div class="controls">
+            <button class="ctrl-btn" id="resetBtn">⟳</button>
+            <button class="ctrl-btn primary" id="startPauseBtn">▶</button>
+        </div>
+        <div class="settings-area">
+            <h3>⚙️ Настройки</h3>
+            <div class="settings-grid">
+                <div class="settings-row"><span>🍅 Pomodoro:</span><input type="number" id="pomodoroTime" value="25" min="1" max="60"><span>мин</span></div>
+                <div class="settings-row"><span>☕ Короткий перерыв:</span><input type="number" id="shortBreakTime" value="5" min="1" max="30"><span>мин</span></div>
+                <div class="settings-row"><span>🌿 Длинный перерыв:</span><input type="number" id="longBreakTime" value="15" min="1" max="60"><span>мин</span></div>
+                <div class="settings-row"><span>🔊 Звук:</span><select id="soundSelect"><option value="bell">🔔 Колокольчик</option><option value="beep">📳 Пищалка</option><option value="chime">🎐 Чайм</option></select></div>
+                <div class="settings-row"><button id="applySettingsBtn">Применить</button></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="todo-panel">
+        <div class="todo-header">
+            <h2>📋 Microsoft To Do</h2>
+            <div class="header-buttons">
+                <select id="taskListSelector" class="list-selector"><option>Загрузка...</option></select>
+                <button id="syncTasksBtn" class="sync-btn">🔄 Синхр.</button>
+                <button id="msAuthBtn" class="login-btn">🔐 Войти</button>
+            </div>
+        </div>
+        <div class="task-input-area">
+            <input type="text" id="newTaskInput" class="task-input" placeholder="Новая задача...">
+            <input type="date" id="taskDueDate" class="task-input" style="width: 140px;">
+            <button id="addTaskBtn" class="add-btn">+ Добавить</button>
+        </div>
+        <div id="tasksContainer" class="tasks-list"><div class="loading">✨ Войдите в Microsoft To Do</div></div>
+        <div id="syncStatus" class="sync-status">⚡ Готов к работе</div>
+    </div>
+
+    <div class="stats-panel">
+        <h2>📊 Статистика</h2>
+        <div class="stat-item"><div>🍅 Сегодня</div><div class="stat-value" id="todaySessions">0</div></div>
+        <div class="stat-item"><div>✅ Задач завершено</div><div class="stat-value" id="totalTasksDone">0</div></div>
+        <div class="stat-item"><div>🎯 Фокус</div><div class="stat-value" id="focusRatio">0%</div></div>
+        <div class="stat-item"><div>📅 Всего сессий</div><div class="stat-value" id="totalSessions">0</div></div>
+    </div>
+</div>
+
+<div id="taskModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header"><h3>📝 Детали задачи</h3><button class="close-modal">&times;</button></div>
+        <div id="modalTaskContent"><div class="loading">Загрузка...</div></div>
+    </div>
+</div>
+
+<script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+<script>
+// ========== ПОМОДОРО ЛОГИКА ==========
+let timerInterval = null;
+let isRunning = false;
+let currentMode = 'pomodoro';
+let currentFocusedTask = null;
+
+let durations = { pomodoro: 1500, shortBreak: 300, longBreak: 900 };
+let todaySessions = 0, totalSessions = 0, tasksCompleted = 0;
+let selectedSound = 'bell';
+
+let archiveStates = {};
+
+const timerDisplay = document.getElementById('timerDisplay');
+const startPauseBtn = document.getElementById('startPauseBtn');
+const resetBtn = document.getElementById('resetBtn');
+const modeBtns = document.querySelectorAll('.mode-btn');
+
+const sounds = {
+    bell: () => { try { new Audio('https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3').play(); } catch(e) {} },
+    beep: () => { try { const ctx = new (window.AudioContext || window.webkitAudioContext)(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); gain.gain.value = 0.2; osc.start(); osc.stop(ctx.currentTime + 0.3); } catch(e) {} },
+    chime: () => { try { new Audio('https://www.soundjay.com/misc/sounds/chime-up-1.mp3').play(); } catch(e) {} }
+};
+
+function saveRunningTimerState() {
+    if (isRunning) {
+        const timeStr = timerDisplay.textContent;
+        const [mins, secs] = timeStr.split(':');
+        const remainingSeconds = parseInt(mins) * 60 + parseInt(secs);
+        const timerState = {
+            isRunning: true,
+            startTime: window.timerStartTime,
+            totalDuration: window.timerTotalDuration,
+            mode: currentMode,
+            remainingSeconds: remainingSeconds,
+            lastSaved: Date.now()
+        };
+        localStorage.setItem('running_timer', JSON.stringify(timerState));
+    } else {
+        localStorage.removeItem('running_timer');
+    }
+}
+
+function restoreRunningTimer() {
+    const saved = localStorage.getItem('running_timer');
+    if (!saved) return false;
+    
+    try {
+        const state = JSON.parse(saved);
+        const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+        const remaining = Math.max(0, state.totalDuration - elapsed);
+        
+        if (remaining > 0 && state.isRunning) {
+            currentMode = state.mode;
+            isRunning = true;
+            window.timerStartTime = state.startTime;
+            window.timerTotalDuration = state.totalDuration;
+            updateTimerDisplayFromSeconds(remaining);
+            modeBtns.forEach(btn => {
+                if (btn.dataset.mode === currentMode) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+            updateModeButtonsState(true);
+            startTimerIntervalFromRestored(remaining);
+            startPauseBtn.textContent = '⏸';
+            return true;
+        } else if (remaining <= 0) {
+            localStorage.removeItem('running_timer');
+        }
+    } catch(e) {}
+    return false;
+}
+
+function startTimerIntervalFromRestored(initialRemaining) {
+    if (timerInterval) clearInterval(timerInterval);
+    
+    timerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - window.timerStartTime) / 1000);
+        const remaining = Math.max(0, window.timerTotalDuration - elapsed);
+        
+        if (remaining <= 0) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            isRunning = false;
+            startPauseBtn.textContent = '▶';
+            updateModeButtonsState(false);
+            playSound();
+            localStorage.removeItem('running_timer');
+            
+            if (currentMode === 'pomodoro') {
+                incrementSession();
+                alert('🍅 Pomodoro завершён! Время отдохнуть.');
+                switchModeWithLock('shortBreak');
+            } else {
+                alert('✅ Перерыв закончен! Давайте работать.');
+                switchModeWithLock('pomodoro');
+            }
+            return;
+        }
+        updateTimerDisplayFromSeconds(remaining);
+        saveRunningTimerState();
+    }, 1000);
+}
+
+function updateTimerDisplayFromSeconds(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    timerDisplay.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+function updateModeButtonsState(disabled) {
+    modeBtns.forEach(btn => {
+        if (disabled && btn.dataset.mode !== currentMode) {
+            btn.classList.add('disabled');
+        } else {
+            btn.classList.remove('disabled');
+        }
+    });
+}
+
+function switchModeWithLock(mode) {
+    if (isRunning) {
+        
